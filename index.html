@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Weather Forecast</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            background-color: #f3f4f6;
+            font-family: 'Arial', sans-serif;
+        }
+    
+        .container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        #forecast-container div {
+            background-color: #1E3A8A;
+            color: #fff;
+            margin: 0.5rem;
+            flex: 1 1 calc(20% - 1rem); /* Allows five cards in a row */
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="flex container mx-auto my-8 max-w-5xl">
+        <div class="w-1/4 p-4">
+            <!-- Search bar and history here -->
+            <div class="flex items-center mb-4">
+                <input type="text" id="city-input" placeholder="Enter city name" class="mr-2 p-2 w-full border border-gray-300 rounded">
+                <button onclick="searchWeather()" class="px-4 py-2 bg-blue-500 text-white rounded">Search</button>
+            </div>
+            <div class="mt-6">
+                <h3 class="text-lg font-bold mb-2">Search History:</h3>
+                <div id="history-container" class="flex flex-wrap"></div>
+            </div>
+        </div>
+        <div class="w-3/4 p-4">
+            <!-- Forecast display here -->
+            <div id="forecast-header" class="text-2xl font-bold mb-4"></div>
+            <div id="forecast-container" class="flex flex-wrap"></div>
+        </div>
+    </div>
+
+
+    <script>
+       const searchHistory = [];
+        const MAX_HISTORY_SIZE = 10;
+
+        function saveSearchHistory() {
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+        }
+
+        function loadSearchHistory() {
+            const loadedSearchHistory = localStorage.getItem('searchHistory');
+            if (loadedSearchHistory) {
+                searchHistory.push(...JSON.parse(loadedSearchHistory));
+            }
+        }
+
+        function searchWeather() {
+            const cityInput = document.getElementById('city-input');
+            const cityName = cityInput.value.trim();
+
+            if (cityName === '') {
+                alert('Please enter a city name.');
+                return;
+            }
+
+            // Clear the existing forecasts
+            document.getElementById('forecast-container').innerHTML = '';
+
+            const apiKey = 'bf41a8ef025eec167e1595556b68f06f';
+            const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${cityName}&appid=${apiKey}&units=metric`;
+            const currentWeatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${apiKey}&units=metric`;
+
+            // Fetch current weather
+            fetch(currentWeatherUrl)
+                .then(response => response.json())
+                .then(data => {
+                    displayCurrentWeather(data);
+                    return fetch(forecastUrl); // Fetch 5-day forecast after displaying current weather
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.cod === '404') {
+                        alert('No forecast data found for this city.');
+                        return;
+                    }
+                    displayForecast(data);
+                })
+                .catch(error => alert(error));
+
+            if (!searchHistory.includes(cityName)) {
+                searchHistory.push(cityName);
+                if (searchHistory.length > MAX_HISTORY_SIZE) {
+                    searchHistory.shift();  // remove the oldest entry
+                }
+                renderSearchHistory();
+                saveSearchHistory();  // Save the search history after updating it
+            }
+
+            cityInput.value = '';
+        }
+
+function displayCurrentWeather(data) {
+    const forecastContainer = document.getElementById('forecast-container');
+
+    const temperature = data.main.temp;
+    const weatherDescription = data.weather[0].description;
+    const windSpeed = data.wind.speed;
+    const humidity = data.main.humidity;
+
+    const forecastCard = document.createElement('div');
+    forecastCard.classList.add('p-4', 'm-2', 'bg-gray-100', 'rounded');
+
+    const dateElement = document.createElement('h2');
+    dateElement.textContent = 'Today';
+    forecastCard.appendChild(dateElement);
+
+    const temperatureElement = document.createElement('p');
+    temperatureElement.textContent = `Temperature: ${temperature} °C`;
+    forecastCard.appendChild(temperatureElement);
+
+    const weatherDescriptionElement = document.createElement('p');
+    weatherDescriptionElement.textContent = `Weather: ${weatherDescription}`;
+    forecastCard.appendChild(weatherDescriptionElement);
+
+    const windSpeedElement = document.createElement('p');
+    windSpeedElement.textContent = `Wind Speed: ${windSpeed} m/s`;
+    forecastCard.appendChild(windSpeedElement);
+
+    const humidityElement = document.createElement('p');
+    humidityElement.textContent = `Humidity: ${humidity}%`;
+    forecastCard.appendChild(humidityElement);
+
+    forecastContainer.appendChild(forecastCard);
+}
+
+function displayForecast(data) {
+    const forecastContainer = document.getElementById('forecast-container');
+    let dayCount = 1; // Because we're already showing the current day
+
+    for (let i = 0; i < data.list.length && dayCount <= 4; i++) {
+        const forecast = data.list[i];
+        const forecastDate = new Date(forecast.dt_txt);
+
+        if (forecastDate.getHours() !== 12) {
+            continue; // Skip entries that are not for 12:00 PM
+        }
+
+        const date = forecastDate.toLocaleDateString(undefined, { weekday: 'long' });
+        const temperature = forecast.main.temp;
+        const weatherDescription = forecast.weather[0].description;
+        const windSpeed = forecast.wind.speed;
+        const humidity = forecast.main.humidity;
+
+        const forecastCard = document.createElement('div');
+        forecastCard.classList.add('p-4', 'm-2', 'bg-gray-100', 'rounded');
+
+        const dateElement = document.createElement('h2');
+        dateElement.textContent = date;
+        forecastCard.appendChild(dateElement);
+
+        const temperatureElement = document.createElement('p');
+        temperatureElement.textContent = `Temperature: ${temperature} °C`;
+        forecastCard.appendChild(temperatureElement);
+
+        const weatherDescriptionElement = document.createElement('p');
+        weatherDescriptionElement.textContent = `Weather: ${weatherDescription}`;
+        forecastCard.appendChild(weatherDescriptionElement);
+
+        const windSpeedElement = document.createElement('p');
+        windSpeedElement.textContent = `Wind Speed: ${windSpeed} m/s`;
+        forecastCard.appendChild(windSpeedElement);
+
+        const humidityElement = document.createElement('p');
+        humidityElement.textContent = `Humidity: ${humidity}%`;
+        forecastCard.appendChild(humidityElement);
+
+        forecastContainer.appendChild(forecastCard);
+        dayCount++;
+    }
+}
+
+function renderSearchHistory() {
+            const historyContainer = document.getElementById('history-container');
+            historyContainer.innerHTML = '';
+
+            for (let i = 0; i < searchHistory.length; i++) {
+                const cityName = searchHistory[i];
+
+                const historyButton = document.createElement('button');
+                historyButton.textContent = cityName;
+                historyButton.classList.add('mr-2', 'mb-2', 'px-4', 'py-2', 'bg-blue-500', 'text-white', 'rounded');
+                historyButton.addEventListener('click', () => {
+                    document.getElementById('city-input').value = cityName;
+                    searchWeather();
+                });
+
+                historyContainer.appendChild(historyButton);
+            }
+        }
+
+        // Load search history and render it when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSearchHistory();
+            renderSearchHistory();
+        });
+
+    </script>
+</body>
+</html>
